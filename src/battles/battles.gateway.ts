@@ -1,4 +1,3 @@
-// src/battles/battles.gateway.ts
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -10,6 +9,9 @@ import { Server, Socket } from 'socket.io';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { Monster } from './schemas/monster.schema';
+import { Battle } from './schemas/battle.schema';
+import { Player } from './schemas/player.schema';
+import { Ability } from './schemas/ability.schema';
 
 @WebSocketGateway({ cors: true })
 export class BattlesGateway
@@ -17,10 +19,12 @@ export class BattlesGateway
 {
   @WebSocketServer() server: Server;
 
-  private activeBattles = new Map<string, BattleSession>();
+  // private activeBattles = new Map<string, BattleSession>();
 
   constructor(
     @InjectModel(Monster.name) private monsterModel: Model<Monster>,
+    @InjectModel(Player.name) private playerModel: Model<Player>,
+    @InjectModel(Battle.name) private battleModel: Model<Battle>,
   ) {}
 
   handleConnection(client: Socket) {
@@ -32,85 +36,109 @@ export class BattlesGateway
   }
 
   @SubscribeMessage('startBattle')
-  async handleStartBattle(client: Socket, monsterIds: number[]) {
-    const monsters = await this.monsterModel.find({ id: { $in: monsterIds } });
+  async handleStartBattle(client: Socket, playerIds: string[]) {
+    const players = await this.playerModel
+      .find({ id: { $in: playerIds } })
+      .exec();
 
-    const battleSession: BattleSession = {
-      id: Date.now().toString(),
-      participants: monsters,
+    const playerIdsObject = players.map((player) => player._id);
+
+    const battleSession: Omit<Battle, 'id' | 'winner'> = {
+      participants: playerIdsObject,
       logs: [],
-      currentTurn: monsterIds[0],
+      currentTurn: playerIds[0],
       status: 'active',
     };
 
-    this.activeBattles.set(battleSession.id, battleSession);
-    client.join(battleSession.id);
-    this.server.to(battleSession.id).emit('battleStarted', battleSession);
+    const newBattleSession = await this.battleModel.create(battleSession);
+    client.join(newBattleSession.id);
+    this.server.to(newBattleSession.id).emit('battleStarted', battleSession);
   }
 
   @SubscribeMessage('attack')
   async handleAttack(
     client: Socket,
-    payload: { battleId: string; attackerId: number; abilityName: string },
+    payload: {
+      battleId: string;
+      attackerId: string;
+      attackerMonsterId: string;
+      abilityName: string;
+      defenderMonsterId: string;
+    },
   ) {
-    const battle = this.activeBattles.get(payload.battleId);
+    const battle = await this.battleModel
+      .findOne({ id: payload.battleId })
+      .populate<{
+        participants: Array<
+          Omit<Player, 'monsters'> & {
+            monsters: Array<
+              Omit<Monster, 'abilities'> & {
+                abilities: Ability[];
+              }
+            >;
+          }
+        >;
+      }>({
+        path: 'participants',
+        populate: {
+          path: 'monsters', // Populate the creator field in each review
+          model: 'Monster', // Specify the model for the creator field
+          populate: {
+            path: 'abilities',
+            model: 'Ability',
+          },
+        },
+      });
 
-    if (battle && battle.currentTurn === payload.attackerId) {
+    if (
+      battle &&
+      battle.currentTurn === payload.attackerId &&
+      battle.status == 'active'
+    ) {
       const attacker = battle.participants.find(
-        (m) => m.id === payload.attackerId,
+        (player) => player.id === payload.attackerId,
       );
       const defender = battle.participants.find(
-        (m) => m.id !== payload.attackerId,
+        (player) => player.id !== payload.attackerId,
       );
-      const ability = attacker.abilities.find(
-        (a) => a.name === payload.abilityName,
+      const attackerMonster = attacker.monsters.find(
+        ({ id }) => id == payload.attackerMonsterId,
       );
-
-      defender.healthPoints -= ability.power;
+      const defenderMonster = defender.monsters.find(
+        ({ id }) => id == payload.defenderMonsterId,
+      );
+      const ability = attackerMonster.abilities.find(
+        ({ name }) => name == payload.abilityName,
+      );
+      defenderMonster.healthPoints -= ability.power;
       battle.logs.push(
-        `${attacker.name} used ${ability.name} (${ability.power} damage)`,
+        `${attackerMonster.name} used ${ability.name} (${ability.power} damage)`,
       );
 
       // Check if battle ended
-      if (defender.healthPoints <= 0) {
+      if (defenderMonster.healthPoints <= 0) {
         battle.status = 'completed';
+        battle.winner = attacker.name;
+        battle.logs = battle.logs;
+        battle.save();
         this.server.to(battle.id).emit('battleEnded', {
-          winner: attacker,
+          winner: attacker.name,
           logs: battle.logs,
         });
-        this.activeBattles.delete(battle.id);
       } else {
         battle.currentTurn = defender.id;
+        battle.save();
         this.server.to(battle.id).emit('battleUpdate', battle);
       }
     }
   }
   // Additional methods in BattlesGateway
-  @SubscribeMessage('joinBattle')
-  handleJoinBattle(client: Socket, battleId: string) {
-    const battle = this.activeBattles.get(battleId);
-    if (battle && battle.status === 'active') {
-      client.join(battleId);
-      client.emit('battleState', battle);
-    }
-  }
-
-  private checkBattleStatus(battle: BattleSession) {
-    if (battle.participants.some((m) => m.healthPoints <= 0)) {
-      battle.status = 'completed';
-      this.server.to(battle.id).emit('battleEnded', {
-        winner: battle.participants.find((m) => m.healthPoints > 0),
-        logs: battle.logs,
-      });
-      this.activeBattles.delete(battle.id);
-    }
-  }
-}
-
-interface BattleSession {
-  id: string;
-  participants: Monster[];
-  logs: string[];
-  currentTurn: number;
-  status: 'active' | 'completed';
+  // @SubscribeMessage('joinBattle')
+  // handleJoinBattle(client: Socket, battleId: string) {
+  //   const battle = this.activeBattles.get(battleId);
+  //   if (battle && battle.status === 'active') {
+  //     client.join(battleId);
+  //     client.emit('battleState', battle);
+  //   }
+  // }
 }
