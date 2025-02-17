@@ -1,11 +1,31 @@
 import { Injectable } from '@nestjs/common';
-import { CreateBattleDto } from './dto/create-battle.dto';
-import { UpdateBattleDto } from './dto/update-battle.dto';
+
+import { Monster } from './schemas/monster.schema';
+import { Player } from './schemas/player.schema';
+import { Battle } from './schemas/battle.schema';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { CreateAbilityDto } from './dto/create-ability.dto';
+import { Ability } from './schemas/ability.schema';
+import { CreateMonsterDto } from './dto/create-monster.dto';
+import { CreatePlayerDto } from './dto/create-player.dto';
 
 @Injectable()
 export class BattlesService {
-  create(createBattleDto: CreateBattleDto) {
-    return 'This action adds a new battle';
+  constructor(
+    @InjectModel(Monster.name) private monsterModel: Model<Monster>,
+    @InjectModel(Player.name) private playerModel: Model<Player>,
+    @InjectModel(Battle.name) private battleModel: Model<Battle>,
+    @InjectModel(Ability.name) private AbilityModel: Model<Ability>,
+  ) {}
+  async createAbility(createAbilityDto: CreateAbilityDto) {
+    return await this.AbilityModel.create(createAbilityDto);
+  }
+  async createMonster(createMonsterDto: CreateMonsterDto) {
+    return await this.monsterModel.create(createMonsterDto);
+  }
+  async createPlayer(createPlayerDto: CreatePlayerDto) {
+    return await this.playerModel.create(createPlayerDto);
   }
 
   findAll() {
@@ -14,13 +34,5 @@ export class BattlesService {
 
   findOne(id: number) {
     return `This action returns a #${id} battle`;
-  }
-
-  update(id: number, updateBattleDto: UpdateBattleDto) {
-    return `This action updates a #${id} battle`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} battle`;
   }
 }

@@ -6,6 +6,7 @@ import { Monster, MonsterSchema } from './schemas/monster.schema';
 import { Ability, AbilitySchema } from './schemas/ability.schema';
 import { Player, PlayerSchema } from './schemas/player.schema';
 import { Battle, BattleSchema } from './schemas/battle.schema';
+import { BattlesController } from './battles.controler ';
 
 @Module({
   imports: [
@@ -16,6 +17,8 @@ import { Battle, BattleSchema } from './schemas/battle.schema';
       { name: Battle.name, schema: BattleSchema },
     ]),
   ],
+  controllers: [BattlesController],
+
   providers: [BattlesGateway, BattlesService],
 })
 export class BattlesModule {}
