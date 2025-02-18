@@ -28,11 +28,11 @@ export class BattlesService {
     return await this.playerModel.create(createPlayerDto);
   }
 
-  findAll() {
-    return `This action returns all battles`;
-  }
+  // findAllPla() {
+  //   return `This action returns all battles`;
+  // }
 
-  findOne(id: number) {
-    return `This action returns a #${id} battle`;
+  async findOnePlayer(id: string) {
+    return await this.playerModel.find({ id });
   }
 }

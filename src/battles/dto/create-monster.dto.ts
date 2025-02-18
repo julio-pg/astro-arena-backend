@@ -1,12 +1,13 @@
+import { IsNumber, IsString } from 'class-validator';
+
 export class CreateMonsterDto {
-  id: string;
-
+  @IsString()
   name: string;
-
+  @IsString()
   image: string;
-
+  @IsString()
   type: string;
-
+  @IsNumber()
   healthPoints: number;
 
   abilities: string[];

@@ -4,6 +4,9 @@ import {
   SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
+  MessageBody,
+  ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Model } from 'mongoose';
@@ -12,47 +15,109 @@ import { Monster } from './schemas/monster.schema';
 import { Battle } from './schemas/battle.schema';
 import { Player } from './schemas/player.schema';
 import { Ability } from './schemas/ability.schema';
+import { Logger } from '@nestjs/common';
 
 @WebSocketGateway({ cors: true })
 export class BattlesGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
-  @WebSocketServer() server: Server;
-
-  // private activeBattles = new Map<string, BattleSession>();
-
   constructor(
     @InjectModel(Monster.name) private monsterModel: Model<Monster>,
     @InjectModel(Player.name) private playerModel: Model<Player>,
     @InjectModel(Battle.name) private battleModel: Model<Battle>,
   ) {}
 
+  private readonly logger = new Logger(BattlesGateway.name);
+
+  @WebSocketServer() server: Server;
+  afterInit() {
+    this.logger.log('Astro Arena web-Socket Initialized');
+  }
+  // private activeBattles = new Map<string, BattleSession>();
+
   handleConnection(client: Socket) {
-    console.log(`Client connected: ${client.id}`);
+    const { sockets } = this.server.sockets;
+
+    this.logger.log(`Client id: ${client.id} connected`);
+    this.logger.debug(`Number of connected clients: ${sockets.size}`);
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`Client disconnected: ${client.id}`);
+    this.logger.log(`Client id:${client.id} disconnected`);
+    this.server.emit('room', client.id + ' left!');
   }
-
   @SubscribeMessage('startBattle')
-  async handleStartBattle(client: Socket, playerIds: string[]) {
-    const players = await this.playerModel
-      .find({ id: { $in: playerIds } })
-      .exec();
+  async handleStartBattle(
+    @MessageBody('playerId') playerId: string,
+    @ConnectedSocket() client: Socket,
+  ) {
+    try {
+      this.logger.debug(`player ${playerId} starts a battle`);
 
-    const playerIdsObject = players.map((player) => player._id);
+      // Fetch the human player
+      const humanPlayer = await this.playerModel
+        .findOne({ id: playerId })
+        .populate({
+          path: 'monsters', // Populate the creator field in each review
+          model: 'Monster', // Specify the model for the creator field
+          populate: {
+            path: 'abilities',
+            model: 'Ability',
+          },
+        })
+        .exec();
+      console.log(humanPlayer);
+      if (!humanPlayer) {
+        throw new Error('Player not found');
+      }
 
-    const battleSession: Omit<Battle, 'id' | 'winner'> = {
-      participants: playerIdsObject,
-      logs: [],
-      currentTurn: playerIds[0],
-      status: 'active',
-    };
+      // Fetch or create the PC player
+      let pcPlayer = await this.playerModel
+        .findOne({ name: 'PC' })
+        .populate({
+          path: 'monsters', // Populate the creator field in each review
+          model: 'Monster', // Specify the model for the creator field
+          populate: {
+            path: 'abilities',
+            model: 'Ability',
+          },
+        })
+        .exec();
+      if (!pcPlayer) {
+        // Create a default PC player if it doesn't exist
+        pcPlayer = await this.playerModel.create({
+          name: 'PC',
+          monsters: [], // Add default monsters for the PC
+          isPC: true, // Mark this player as a PC
+        });
+      }
 
-    const newBattleSession = await this.battleModel.create(battleSession);
-    client.join(newBattleSession.id);
-    this.server.to(newBattleSession.id).emit('battleStarted', battleSession);
+      // Create the battle session
+      const battleSession: Omit<Battle, 'id' | 'winner'> = {
+        participants: [humanPlayer._id, pcPlayer._id],
+        logs: [],
+        currentTurn: humanPlayer.id, // Human player starts first
+        status: 'active',
+      };
+
+      // Save the battle session to the database
+      const newBattleSession = await this.battleModel.create(battleSession);
+
+      // Join the client to the battle room
+      client.join(newBattleSession.id);
+
+      // Emit the battle start event with the PC player's details
+      this.server.to(newBattleSession.id).emit('battleStarted', {
+        battleId: newBattleSession.id,
+        participants: [humanPlayer, pcPlayer],
+        logs: [],
+        currentTurn: humanPlayer.id,
+        status: 'active',
+      });
+    } catch (error) {
+      // Handle errors and notify the client
+      client.emit('error', { message: error.message });
+    }
   }
 
   @SubscribeMessage('attack')

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { BattlesService } from './battles.service';
 import { CreateAbilityDto } from './dto/create-ability.dto';
 import { CreateMonsterDto } from './dto/create-monster.dto';
@@ -22,13 +22,13 @@ export class BattlesController {
     return await this.battlesService.createPlayer(createPlayerDto);
   }
 
-  @Get('battles')
-  findAll() {
-    return this.battlesService.findAll();
-  }
-
-  // @Get('battles/:id')
-  // findOne(@Param('id') id: number) {
-  //   return this.battlesService.findOne(id);
+  // @Get('battles')
+  // findAll() {
+  //   return this.battlesService.findAll();
   // }
+
+  @Get('player/:id')
+  findOne(@Param('id') id: string) {
+    return this.battlesService.findOnePlayer(id);
+  }
 }

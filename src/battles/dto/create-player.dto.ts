@@ -1,7 +1,7 @@
+import { IsString } from 'class-validator';
+
 export class CreatePlayerDto {
-  id: string;
-
+  @IsString()
   name: string;
-
   monsters: string[];
 }

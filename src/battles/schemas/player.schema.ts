@@ -1,7 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { Monster } from './monster.schema';
 
 export type PlayerDocument = HydratedDocument<Player>;
 
@@ -22,7 +21,7 @@ export class Player {
     ref: 'Monster',
     required: true,
   })
-  monsters: Types.ObjectId[] | Monster[];
+  monsters: Types.ObjectId[];
 }
 
 export const PlayerSchema = SchemaFactory.createForClass(Player);
