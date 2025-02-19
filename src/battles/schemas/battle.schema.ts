@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
+import { Player } from './player.schema';
 
 export type BattleDocument = HydratedDocument<Battle>;
 
@@ -24,12 +25,14 @@ export class Battle {
   currentTurn: string;
 
   @Prop({ required: true })
-  logs: string[];
-
-  @Prop({ required: true })
   status: 'active' | 'completed';
   @Prop({ required: false })
   winner: string;
 }
-
+export interface BattleSession {
+  id: string;
+  participants: Player[];
+  currentTurn: string;
+  status: 'active' | 'completed';
+}
 export const BattleSchema = SchemaFactory.createForClass(Battle);

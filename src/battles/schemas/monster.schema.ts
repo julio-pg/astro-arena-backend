@@ -27,7 +27,7 @@ export class Monster {
   healthPoints: number;
 
   @Prop({
-    type: Types.ObjectId,
+    type: [{ type: Types.ObjectId }],
     ref: 'Ability',
     required: true,
   })

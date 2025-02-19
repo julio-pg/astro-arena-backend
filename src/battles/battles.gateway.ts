@@ -12,7 +12,7 @@ import { Server, Socket } from 'socket.io';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { Monster } from './schemas/monster.schema';
-import { Battle } from './schemas/battle.schema';
+import { Battle, BattleSession } from './schemas/battle.schema';
 import { Player } from './schemas/player.schema';
 import { Ability } from './schemas/ability.schema';
 import { Logger } from '@nestjs/common';
@@ -33,7 +33,7 @@ export class BattlesGateway
   afterInit() {
     this.logger.log('Astro Arena web-Socket Initialized');
   }
-  // private activeBattles = new Map<string, BattleSession>();
+  private activeBattles = new Map<string, BattleSession>();
 
   handleConnection(client: Socket) {
     const { sockets } = this.server.sockets;
@@ -66,7 +66,6 @@ export class BattlesGateway
           },
         })
         .exec();
-      console.log(humanPlayer);
       if (!humanPlayer) {
         throw new Error('Player not found');
       }
@@ -91,24 +90,23 @@ export class BattlesGateway
           isPC: true, // Mark this player as a PC
         });
       }
-
       // Create the battle session
-      const battleSession: Omit<Battle, 'id' | 'winner'> = {
-        participants: [humanPlayer._id, pcPlayer._id],
-        logs: [],
+      const battleSession: BattleSession = {
+        id: Date.now().toString(), // Unique battle ID
+        participants: [humanPlayer, pcPlayer],
         currentTurn: humanPlayer.id, // Human player starts first
         status: 'active',
       };
 
       // Save the battle session to the database
-      const newBattleSession = await this.battleModel.create(battleSession);
+      this.activeBattles.set(battleSession.id, battleSession);
 
       // Join the client to the battle room
-      client.join(newBattleSession.id);
+      client.join(battleSession.id);
 
       // Emit the battle start event with the PC player's details
-      this.server.to(newBattleSession.id).emit('battleStarted', {
-        battleId: newBattleSession.id,
+      this.server.to(battleSession.id).emit('battleStarted', {
+        id: battleSession.id,
         participants: [humanPlayer, pcPlayer],
         logs: [],
         currentTurn: humanPlayer.id,
@@ -120,90 +118,124 @@ export class BattlesGateway
     }
   }
 
-  @SubscribeMessage('attack')
-  async handleAttack(
-    client: Socket,
-    payload: {
-      battleId: string;
-      attackerId: string;
-      attackerMonsterId: string;
-      abilityName: string;
-      defenderMonsterId: string;
-    },
+  @SubscribeMessage('activeMonster')
+  async handleActiveMonster(
+    @ConnectedSocket() client: Socket,
+    @MessageBody('playerId') playerId: string,
+    @MessageBody('monsterId') monsterId: string,
+    @MessageBody('battleId') battleId: string,
   ) {
-    const battle = await this.battleModel
-      .findOne({ id: payload.battleId })
-      .populate<{
-        participants: Array<
-          Omit<Player, 'monsters'> & {
-            monsters: Array<
-              Omit<Monster, 'abilities'> & {
-                abilities: Ability[];
-              }
-            >;
-          }
-        >;
-      }>({
-        path: 'participants',
-        populate: {
-          path: 'monsters', // Populate the creator field in each review
-          model: 'Monster', // Specify the model for the creator field
-          populate: {
-            path: 'abilities',
-            model: 'Ability',
-          },
-        },
-      });
+    try {
+      const battle = this.activeBattles.get(battleId);
 
-    if (
-      battle &&
-      battle.currentTurn === payload.attackerId &&
-      battle.status == 'active'
-    ) {
-      const attacker = battle.participants.find(
-        (player) => player.id === payload.attackerId,
-      );
-      const defender = battle.participants.find(
-        (player) => player.id !== payload.attackerId,
-      );
-      const attackerMonster = attacker.monsters.find(
-        ({ id }) => id == payload.attackerMonsterId,
-      );
-      const defenderMonster = defender.monsters.find(
-        ({ id }) => id == payload.defenderMonsterId,
-      );
-      const ability = attackerMonster.abilities.find(
-        ({ name }) => name == payload.abilityName,
-      );
-      defenderMonster.healthPoints -= ability.power;
-      battle.logs.push(
-        `${attackerMonster.name} used ${ability.name} (${ability.power} damage)`,
-      );
-
-      // Check if battle ended
-      if (defenderMonster.healthPoints <= 0) {
-        battle.status = 'completed';
-        battle.winner = attacker.name;
-        battle.logs = battle.logs;
-        battle.save();
-        this.server.to(battle.id).emit('battleEnded', {
-          winner: attacker.name,
-          logs: battle.logs,
-        });
-      } else {
-        battle.currentTurn = defender.id;
-        battle.save();
-        this.server.to(battle.id).emit('battleUpdate', battle);
+      if (!battle) {
+        throw new Error('Battle not found');
       }
+
+      const player = await this.playerModel.findOne({ id: playerId });
+      if (!player) {
+        throw new Error('Player not found');
+      }
+      const monster = await this.monsterModel.findOne({ id: monsterId });
+      if (!monster) {
+        throw new Error('Monster not found');
+      }
+
+      // Notify clients about the player's action
+      this.server.to(battle.id).emit('monsterActivated', {
+        currentTurn: player.id,
+        message: `${player.name} summoned ${monster.name}`,
+        monsterId: monster.id,
+        nextTurn: battle.participants.find((p) => p.id !== playerId).id,
+      });
+      // Find the PC player
+      const pcPlayer = battle.participants.find((p) => p.id !== playerId);
+      if (!pcPlayer) {
+        throw new Error('PC player not found');
+      }
+
+      // Select a random monster from the PC's monsters
+      const pcMonsters = await this.monsterModel.find({
+        _id: { $in: pcPlayer.monsters },
+      });
+      if (pcMonsters.length === 0) {
+        throw new Error('PC has no monsters');
+      }
+
+      const randomMonster =
+        pcMonsters[Math.floor(Math.random() * pcMonsters.length)];
+
+      // Notify clients about the PC's action
+      this.server.to(battle.id).emit('monsterActivated', {
+        currentTurn: pcPlayer.id,
+        message: `${pcPlayer.name} summoned ${randomMonster.name}`,
+        monsterId: randomMonster.id,
+        nextTurn: playerId, // Switch back to the player's turn
+      });
+      this.server.to(battle.id).emit('pcActive', {
+        monsterId: randomMonster.id,
+      });
+    } catch (error) {
+      client.emit('error', { message: error.message });
     }
   }
-  // Additional methods in BattlesGateway
-  // @SubscribeMessage('joinBattle')
-  // handleJoinBattle(client: Socket, battleId: string) {
-  //   const battle = this.activeBattles.get(battleId);
-  //   if (battle && battle.status === 'active') {
-  //     client.join(battleId);
-  //     client.emit('battleState', battle);
-  //   }
-  // }
+  @SubscribeMessage('attack')
+  async handleAttack(
+    @ConnectedSocket() client: Socket,
+    @MessageBody('battleId') battleId: string,
+    @MessageBody('attackerId') attackerId: string,
+    @MessageBody('attackerMonsterId') attackerMonsterId: string,
+    @MessageBody('abilityName') abilityName: string,
+    @MessageBody('defenderMonsterId') defenderMonsterId: string,
+  ) {
+    try {
+      const battle = this.activeBattles.get(battleId);
+      if (!battle) {
+        throw new Error('Battle not found');
+      }
+      if (battle && battle.status == 'active') {
+        const attacker = battle.participants.find(
+          (player) => player.id === attackerId,
+        );
+        const defender = battle.participants.find(
+          (player) => player.id !== attackerId,
+        );
+        const attackerMonster = await this.monsterModel
+          .findOne({
+            id: attackerMonsterId,
+          })
+          .populate<{ abilities: Ability[] }>('abilities');
+        const defenderMonster = await this.monsterModel
+          .findOne({
+            id: defenderMonsterId,
+          })
+          .populate<{ abilities: Ability[] }>('abilities');
+        if (!attackerMonster || !defenderMonster) {
+          throw new Error('Monster not found');
+        }
+
+        const ability = attackerMonster.abilities.find(
+          ({ name }) => name == abilityName,
+        );
+        defenderMonster.healthPoints -= ability.power;
+
+        // Check if battle ended
+        if (defenderMonster.healthPoints <= 0) {
+          battle.status = 'completed';
+          // battle.winner = attacker.name;
+          this.server.to(battle.id).emit('battleEnded', {
+            winner: attacker.name,
+          });
+        } else {
+          battle.currentTurn = defender.id;
+          this.server.to(battle.id).emit('battleUpdate', {
+            damage: ability.power,
+            to: defenderMonsterId,
+          });
+        }
+      }
+    } catch (error) {
+      client.emit('error', { message: error.message });
+    }
+  }
 }
