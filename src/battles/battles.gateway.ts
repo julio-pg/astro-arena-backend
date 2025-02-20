@@ -143,37 +143,44 @@ export class BattlesGateway
 
       // Notify clients about the player's action
       this.server.to(battle.id).emit('monsterActivated', {
-        currentTurn: player.id,
         message: `${player.name} summoned ${monster.name}`,
         monsterId: monster.id,
         nextTurn: battle.participants.find((p) => p.id !== playerId).id,
       });
+    } catch (error) {
+      client.emit('error', { message: error.message });
+    }
+  }
+  @SubscribeMessage('pcMonster')
+  async handlePcActiveMonster(
+    @ConnectedSocket() client: Socket,
+    @MessageBody('battleId') battleId: string,
+    @MessageBody('availableMonsters') availableMonsters: Monster[],
+  ) {
+    try {
+      const battle = this.activeBattles.get(battleId);
+
+      if (!battle) {
+        throw new Error('Battle not found');
+      }
       // Find the PC player
-      const pcPlayer = battle.participants.find((p) => p.id !== playerId);
+      const pcPlayer = battle.participants.find((p) => p.name == 'PC');
       if (!pcPlayer) {
         throw new Error('PC player not found');
       }
 
       // Select a random monster from the PC's monsters
-      const pcMonsters = await this.monsterModel.find({
-        _id: { $in: pcPlayer.monsters },
-      });
-      if (pcMonsters.length === 0) {
+      if (availableMonsters.length === 0) {
         throw new Error('PC has no monsters');
       }
 
       const randomMonster =
-        pcMonsters[Math.floor(Math.random() * pcMonsters.length)];
+        availableMonsters[Math.floor(Math.random() * availableMonsters.length)];
 
-      // Notify clients about the PC's action
-      this.server.to(battle.id).emit('monsterActivated', {
-        currentTurn: pcPlayer.id,
+      this.server.to(battle.id).emit('pcMonsterActivated', {
         message: `${pcPlayer.name} summoned ${randomMonster.name}`,
         monsterId: randomMonster.id,
-        nextTurn: playerId, // Switch back to the player's turn
-      });
-      this.server.to(battle.id).emit('pcActive', {
-        monsterId: randomMonster.id,
+        nextTurn: battle.participants.find((p) => p.id !== pcPlayer.id).id,
       });
     } catch (error) {
       client.emit('error', { message: error.message });
@@ -229,11 +236,48 @@ export class BattlesGateway
         } else {
           battle.currentTurn = defender.id;
           this.server.to(battle.id).emit('battleUpdate', {
+            name: ability.name,
             damage: ability.power,
-            to: defenderMonsterId,
+            message: `${attackerMonster.name} used ${ability.name}`,
           });
+
+          setTimeout(() => {
+            this.handlePcAttack(client, battleId, defenderMonsterId);
+          }, 2000);
         }
       }
+    } catch (error) {
+      client.emit('error', { message: error.message });
+    }
+  }
+  private async handlePcAttack(
+    client: Socket,
+    battleId: string,
+    pcMonsterId: string,
+  ) {
+    const battle = this.activeBattles.get(battleId);
+    if (!battle) {
+      throw new Error('Battle not found');
+    }
+    if (battle && battle.status == 'active') {
+      const monster = await this.monsterModel
+        .findOne({
+          id: pcMonsterId,
+        })
+        .populate<{ abilities: Ability[] }>('abilities');
+      const selectedAbility =
+        monster.abilities[Math.floor(Math.random() * monster.abilities.length)]
+          .name;
+      const ability = monster.abilities.find(
+        (ability) => ability.name === selectedAbility,
+      );
+      this.server.to(battleId).emit('pcUpdate', {
+        name: ability.name,
+        damage: ability.power,
+        message: `${monster.name} used ${ability.name}`,
+      });
+    }
+    try {
     } catch (error) {
       client.emit('error', { message: error.message });
     }
