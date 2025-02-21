@@ -33,7 +33,7 @@ export class BattlesService {
       .find({})
       .populate('participants')
       .sort({ createdAt: -1 })
-      .limit(5);
+      .limit(3);
   }
 
   async findOnePlayer(id: string) {
