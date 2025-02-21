@@ -21,8 +21,8 @@ export class Battle {
   })
   participants: Types.ObjectId[];
 
-  @Prop({ required: true })
-  currentTurn: string;
+  // @Prop({ required: true })
+  // currentTurn: string;
 
   @Prop({ required: true })
   status: 'active' | 'completed';
@@ -31,7 +31,9 @@ export class Battle {
 }
 export interface BattleSession {
   id: string;
-  participants: Player[];
+  participants: (Player & {
+    _id: Types.ObjectId;
+  })[];
   currentTurn: string;
   status: 'active' | 'completed';
 }

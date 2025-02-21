@@ -90,6 +90,7 @@ export class BattlesGateway
           isPC: true, // Mark this player as a PC
         });
       }
+
       // Create the battle session
       const battleSession: BattleSession = {
         id: Date.now().toString(), // Unique battle ID
@@ -278,6 +279,30 @@ export class BattlesGateway
       });
     }
     try {
+    } catch (error) {
+      client.emit('error', { message: error.message });
+    }
+  }
+  @SubscribeMessage('endBattle')
+  async handleEndBattle(
+    @ConnectedSocket() client: Socket,
+    @MessageBody('battleId') battleId: string,
+    @MessageBody('winnerId') winnerId: string,
+  ) {
+    try {
+      const battle = this.activeBattles.get(battleId);
+      if (!battle) {
+        throw new Error('Battle not found');
+      }
+      await this.battleModel.create({
+        participants: battle.participants.map((p) => p._id),
+        status: 'completed',
+        winner: winnerId,
+      });
+      this.server.to(battleId).emit('battleEnded', {
+        winner: battle.participants.find((p) => p.id === winnerId).name,
+        // message: `${monster.name} used ${ability.name}`,
+      });
     } catch (error) {
       client.emit('error', { message: error.message });
     }
