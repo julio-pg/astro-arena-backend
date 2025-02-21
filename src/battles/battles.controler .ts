@@ -22,10 +22,10 @@ export class BattlesController {
     return await this.battlesService.createPlayer(createPlayerDto);
   }
 
-  // @Get('battles')
-  // findAll() {
-  //   return this.battlesService.findAll();
-  // }
+  @Get('battles')
+  findLastBattles() {
+    return this.battlesService.findLastBattles();
+  }
 
   @Get('player/:id')
   findOne(@Param('id') id: string) {

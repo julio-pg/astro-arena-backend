@@ -5,7 +5,7 @@ import { Player } from './player.schema';
 
 export type BattleDocument = HydratedDocument<Battle>;
 
-@Schema()
+@Schema({ timestamps: true })
 export class Battle {
   @Prop({
     required: true,
@@ -15,14 +15,11 @@ export class Battle {
   id: string;
 
   @Prop({
-    type: Types.ObjectId,
+    type: [{ type: Types.ObjectId }],
     ref: 'Player',
     required: true,
   })
   participants: Types.ObjectId[];
-
-  // @Prop({ required: true })
-  // currentTurn: string;
 
   @Prop({ required: true })
   status: 'active' | 'completed';

@@ -28,9 +28,13 @@ export class BattlesService {
     return await this.playerModel.create(createPlayerDto);
   }
 
-  // findAllPla() {
-  //   return `This action returns all battles`;
-  // }
+  findLastBattles() {
+    return this.battleModel
+      .find({})
+      .populate('participants')
+      .sort({ createdAt: -1 })
+      .limit(5);
+  }
 
   async findOnePlayer(id: string) {
     return await this.playerModel.find({ id });
