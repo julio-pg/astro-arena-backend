@@ -194,7 +194,7 @@ export class BattlesGateway
     @MessageBody('attackerId') attackerId: string,
     @MessageBody('attackerMonsterId') attackerMonsterId: string,
     @MessageBody('abilityName') abilityName: string,
-    @MessageBody('defenderMonsterId') defenderMonsterId: string,
+    // @MessageBody('defenderMonsterId') defenderMonsterId: string,
   ) {
     try {
       const battle = this.activeBattles.get(battleId);
@@ -202,59 +202,39 @@ export class BattlesGateway
         throw new Error('Battle not found');
       }
       if (battle && battle.status == 'active') {
-        const attacker = battle.participants.find(
-          (player) => player.id === attackerId,
-        );
-        const defender = battle.participants.find(
-          (player) => player.id !== attackerId,
-        );
         const attackerMonster = await this.monsterModel
           .findOne({
             id: attackerMonsterId,
           })
           .populate<{ abilities: Ability[] }>('abilities');
-        const defenderMonster = await this.monsterModel
-          .findOne({
-            id: defenderMonsterId,
-          })
-          .populate<{ abilities: Ability[] }>('abilities');
-        if (!attackerMonster || !defenderMonster) {
+
+        if (!attackerMonster) {
           throw new Error('Monster not found');
         }
 
         const ability = attackerMonster.abilities.find(
           ({ name }) => name == abilityName,
         );
-        defenderMonster.healthPoints -= ability.power;
-
-        // Check if battle ended
-        if (defenderMonster.healthPoints <= 0) {
-          battle.status = 'completed';
-          // battle.winner = attacker.name;
-          this.server.to(battle.id).emit('battleEnded', {
-            winner: attacker.name,
-          });
-        } else {
-          battle.currentTurn = defender.id;
-          this.server.to(battle.id).emit('battleUpdate', {
-            name: ability.name,
-            damage: ability.power,
-            message: `${attackerMonster.name} used ${ability.name}`,
-          });
-
-          setTimeout(() => {
-            this.handlePcAttack(client, battleId, defenderMonsterId);
-          }, 2000);
+        if (!ability) {
+          throw new Error('Ability not found');
         }
+
+        this.server.to(battle.id).emit('battleUpdate', {
+          name: ability.name,
+          damage: ability.power,
+          message: `${attackerMonster.name} used ${ability.name}`,
+          nextTurn: battle.participants.find((p) => p.name == 'PC').id,
+        });
       }
     } catch (error) {
       client.emit('error', { message: error.message });
     }
   }
-  private async handlePcAttack(
-    client: Socket,
-    battleId: string,
-    pcMonsterId: string,
+  @SubscribeMessage('pcAttack')
+  async handlePcAttack(
+    @ConnectedSocket() client: Socket,
+    @MessageBody('battleId') battleId: string,
+    @MessageBody('pcMonsterId') pcMonsterId: string,
   ) {
     const battle = this.activeBattles.get(battleId);
     if (!battle) {
@@ -276,6 +256,7 @@ export class BattlesGateway
         name: ability.name,
         damage: ability.power,
         message: `${monster.name} used ${ability.name}`,
+        nextTurn: battle.participants.find((p) => p.name !== 'PC').id,
       });
     }
     try {
