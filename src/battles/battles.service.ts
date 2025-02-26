@@ -83,7 +83,7 @@ export class BattlesService implements OnModuleInit {
       ]);
 
       // Debug: Log input tensor
-      console.log('Input Tensor:', input.arraySync());
+      // console.log('Input Tensor:', input.arraySync());
 
       // Make a prediction
       const prediction = this.model.predict(input) as tf.Tensor;

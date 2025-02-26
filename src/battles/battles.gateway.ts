@@ -181,7 +181,6 @@ export class BattlesGateway
         playerMonster,
         availableMonsters,
       );
-      console.log(bestOptionMonster.name);
       // const randomMonster =
       //   availableMonsters[Math.floor(Math.random() * availableMonsters.length)];
 
