@@ -27,7 +27,7 @@
             "bias_constraint": null,
             "name": "dense_Dense1",
             "trainable": true,
-            "batch_input_shape": [null, 5],
+            "batch_input_shape": [null, 6],
             "dtype": "float32"
           }
         },
@@ -65,7 +65,7 @@
     {
       "paths": ["weights.bin"],
       "weights": [
-        { "name": "dense_Dense1/kernel", "shape": [5, 16], "dtype": "float32" },
+        { "name": "dense_Dense1/kernel", "shape": [6, 16], "dtype": "float32" },
         { "name": "dense_Dense1/bias", "shape": [16], "dtype": "float32" },
         { "name": "dense_Dense2/kernel", "shape": [16, 5], "dtype": "float32" },
         { "name": "dense_Dense2/bias", "shape": [5], "dtype": "float32" }
