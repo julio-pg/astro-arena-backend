@@ -35,37 +35,86 @@ export class BattlesService implements OnModuleInit {
     }
   }
   // Predict the best monster for the AI to activate
-  private predictBestMonster(
-    playerMonster: { type: string },
-    aiMonsters: { type: string }[],
-  ) {
+  predictBestMonster(playerMonster: Monster, aiMonsters: Monster[]) {
     if (!this.model) {
       throw new Error('AI model is not loaded.');
     }
 
-    // Map monster types to numerical values
-    const typeToNumber = { fire: 0, grass: 1, water: 2 };
+    try {
+      const types = ['fire', 'grass', 'water', 'electric', 'ground'];
 
-    // Prepare input tensor
-    const input = tf.tensor2d([
-      [
-        typeToNumber[playerMonster.type],
-        ...aiMonsters.map((monster) => typeToNumber[monster.type]),
-      ],
-    ]);
+      // Map monster types to numerical values
+      const typeToNumber = {
+        fire: 0,
+        grass: 1,
+        water: 2,
+        electric: 3,
+        ground: 4,
+      };
 
-    // Make a prediction
-    const prediction = this.model.predict(input) as tf.Tensor;
-    const bestTypeIndex = prediction.argMax(1).dataSync()[0];
+      const numberToType = {
+        0: 'fire',
+        1: 'grass',
+        2: 'water',
+        3: 'electric',
+        4: 'ground',
+      };
 
-    // Map the predicted index back to a monster type
-    const bestType = Object.keys(typeToNumber).find(
-      (key) => typeToNumber[key] === bestTypeIndex,
-    );
+      // Ensure playerMonster.type is valid
+      if (!(playerMonster.type in typeToNumber)) {
+        throw new Error(`Invalid player monster type: ${playerMonster.type}`);
+      }
 
-    // Find the corresponding monster
-    const bestMonster = aiMonsters.find((monster) => monster.type === bestType);
-    return bestMonster;
+      // Encode player's monster type
+      const playerMonsterIndex = typeToNumber[playerMonster.type];
+      const playerIndexNormalized = playerMonsterIndex / (types.length - 1);
+      // Encode AI's available monsters as a multi-hot vector
+      const aiMonsterAvailability = new Array(5).fill(0); // 5 types: fire, grass, water, electric, ground
+      aiMonsters.forEach((monster) => {
+        if (!(monster.type in typeToNumber)) {
+          throw new Error(`Invalid AI monster type: ${monster.type}`);
+        }
+        aiMonsterAvailability[typeToNumber[monster.type]] = 1;
+      });
+
+      // Create input tensor
+      const input = tf.tensor2d([
+        [playerIndexNormalized, ...aiMonsterAvailability],
+      ]);
+
+      // Debug: Log input tensor
+      console.log('Input Tensor:', input.arraySync());
+
+      // Make a prediction
+      const prediction = this.model.predict(input) as tf.Tensor;
+
+      const bestTypeIndex = prediction.argMax(1).dataSync()[0];
+
+      // Map the predicted index back to a monster type
+      const bestType = numberToType[bestTypeIndex];
+
+      if (!bestType) {
+        throw new Error(`Invalid predicted type index: ${bestTypeIndex}`);
+      }
+
+      // Find the corresponding monster
+      const bestMonster = aiMonsters.find(
+        (monster) => monster.type === bestType,
+      );
+
+      if (!bestMonster) {
+        throw new Error(`No matching monster found for type: ${bestType}`);
+      }
+
+      // Dispose of tensors to free memory
+      input.dispose();
+      prediction.dispose();
+
+      return bestMonster;
+    } catch (error) {
+      console.error('Error in predictBestMonster:', error.message);
+      throw error; // Re-throw the error for the caller to handle
+    }
   }
   async createAbility(createAbilityDto: CreateAbilityDto) {
     return await this.AbilityModel.create(createAbilityDto);

@@ -16,6 +16,7 @@ import { Battle, BattleSession } from './schemas/battle.schema';
 import { Player } from './schemas/player.schema';
 import { Ability } from './schemas/ability.schema';
 import { Logger } from '@nestjs/common';
+import { BattlesService } from './battles.service';
 
 @WebSocketGateway({ cors: true })
 export class BattlesGateway
@@ -25,6 +26,7 @@ export class BattlesGateway
     @InjectModel(Monster.name) private monsterModel: Model<Monster>,
     @InjectModel(Player.name) private playerModel: Model<Player>,
     @InjectModel(Battle.name) private battleModel: Model<Battle>,
+    private readonly battlesService: BattlesService,
   ) {}
 
   private readonly logger = new Logger(BattlesGateway.name);
@@ -156,6 +158,7 @@ export class BattlesGateway
   async handlePcActiveMonster(
     @ConnectedSocket() client: Socket,
     @MessageBody('battleId') battleId: string,
+    @MessageBody('playerMonster') playerMonster: Monster,
     @MessageBody('availableMonsters') availableMonsters: Monster[],
   ) {
     try {
@@ -174,13 +177,17 @@ export class BattlesGateway
       if (availableMonsters.length === 0) {
         throw new Error('PC has no monsters');
       }
-
-      const randomMonster =
-        availableMonsters[Math.floor(Math.random() * availableMonsters.length)];
+      const bestOptionMonster = this.battlesService.predictBestMonster(
+        playerMonster,
+        availableMonsters,
+      );
+      console.log(bestOptionMonster.name);
+      // const randomMonster =
+      //   availableMonsters[Math.floor(Math.random() * availableMonsters.length)];
 
       this.server.to(battle.id).emit('pcMonsterActivated', {
-        message: `${pcPlayer.name} summoned ${randomMonster.name}`,
-        monsterId: randomMonster.id,
+        message: `${pcPlayer.name} summoned ${bestOptionMonster.name}`,
+        monsterId: bestOptionMonster.id,
         nextTurn: battle.participants.find((p) => p.id !== pcPlayer.id).id,
       });
     } catch (error) {
