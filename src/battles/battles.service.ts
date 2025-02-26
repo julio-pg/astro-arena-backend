@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
 import { Monster } from './schemas/monster.schema';
 import { Player } from './schemas/player.schema';
@@ -18,15 +18,19 @@ export class BattlesService implements OnModuleInit {
     @InjectModel(Player.name) private playerModel: Model<Player>,
     @InjectModel(Battle.name) private battleModel: Model<Battle>,
     @InjectModel(Ability.name) private AbilityModel: Model<Ability>,
-    private model: tf.LayersModel,
   ) {}
+  private readonly logger = new Logger(BattlesService.name);
+
+  private model: tf.LayersModel;
 
   async onModuleInit() {
     try {
-      this.model = await tf.loadLayersModel('./models/opponent.json');
-      console.log('AI model loaded successfully.');
+      this.model = await tf.loadLayersModel(
+        'file://./src/battles/models/my-model/opponent.json',
+      );
+      this.logger.log('AI model loaded successfully.');
     } catch (error) {
-      console.error('Failed to load AI model:', error);
+      this.logger.error('Failed to load AI model:', error);
       throw error;
     }
   }
@@ -40,7 +44,7 @@ export class BattlesService implements OnModuleInit {
     }
 
     // Map monster types to numerical values
-    const typeToNumber = { Fire: 0, Grass: 1, Water: 2 };
+    const typeToNumber = { fire: 0, grass: 1, water: 2 };
 
     // Prepare input tensor
     const input = tf.tensor2d([
