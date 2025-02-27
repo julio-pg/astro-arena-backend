@@ -106,14 +106,16 @@ export class BattlesGateway
 
       // Join the client to the battle room
       client.join(battleSession.id);
+      // Randomly select who starts the battle
+      const startingPlayer = Math.random() < 0.5 ? humanPlayer : pcPlayer;
 
       // Emit the battle start event with the PC player's details
       this.server.to(battleSession.id).emit('battleStarted', {
         id: battleSession.id,
         participants: [humanPlayer, pcPlayer],
-        logs: [],
-        currentTurn: humanPlayer.id,
+        currentTurn: startingPlayer.id,
         status: 'active',
+        message: `${startingPlayer.name} start game`,
       });
     } catch (error) {
       // Handle errors and notify the client
@@ -158,8 +160,8 @@ export class BattlesGateway
   async handlePcActiveMonster(
     @ConnectedSocket() client: Socket,
     @MessageBody('battleId') battleId: string,
-    @MessageBody('playerMonster') playerMonster: Monster,
     @MessageBody('availableMonsters') availableMonsters: Monster[],
+    @MessageBody('playerMonster') playerMonster?: Monster,
   ) {
     try {
       const battle = this.activeBattles.get(battleId);
@@ -177,12 +179,18 @@ export class BattlesGateway
       if (availableMonsters.length === 0) {
         throw new Error('PC has no monsters');
       }
-      const bestOptionMonster = this.battlesService.predictBestMonster(
-        playerMonster,
-        availableMonsters,
-      );
-      // const randomMonster =
-      //   availableMonsters[Math.floor(Math.random() * availableMonsters.length)];
+      let bestOptionMonster: Monster;
+      if (playerMonster) {
+        bestOptionMonster = this.battlesService.predictBestMonster(
+          playerMonster,
+          availableMonsters,
+        );
+      } else {
+        bestOptionMonster =
+          availableMonsters[
+            Math.floor(Math.random() * availableMonsters.length)
+          ];
+      }
 
       this.server.to(battle.id).emit('pcMonsterActivated', {
         message: `${pcPlayer.name} summoned ${bestOptionMonster.name}`,
