@@ -2,8 +2,7 @@
 
 Welcome to the **Astro-Arena-Backend** repository! This is the server-side application built with **NestJS** that powers the Astro-Arena card game. The backend runs the AI model for the PC player, interacts with the frontend via **webhooks**, and uses **MongoDB** as the database to store game data, player information, and card collections. This repository works in collaboration with the [Astro-Arena Frontend](https://github.com/julio-pg/astro-arena-frontend).
 
-> [!TIP]
-> **Tip for Windows Users**: To avoid errors when running the AI model, it is recommended to use **Windows Subsystem for Linux (WSL)** for a smoother experience."
+> [!TIP] > **Tip for Windows Users**: To avoid errors when running the AI model, it is recommended to use **Windows Subsystem for Linux (WSL)** for a smoother experience.
 
 ---
 
