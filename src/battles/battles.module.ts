@@ -19,6 +19,6 @@ import { BattlesController } from './battles.controler ';
   ],
   controllers: [BattlesController],
 
-  providers: [BattlesService],
+  providers: [BattlesGateway, BattlesService],
 })
 export class BattlesModule {}
