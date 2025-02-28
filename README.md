@@ -1,99 +1,153 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Astro-Arena-Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Welcome to the **Astro-Arena-Backend** repository! This is the server-side application built with **NestJS** that powers the Astro-Arena card game. The backend runs the AI model for the PC player, interacts with the frontend via **webhooks**, and uses **MongoDB** as the database to store game data, player information, and card collections. This repository works in collaboration with the [Astro-Arena Frontend](https://github.com/julio-pg/astro-arena-frontend).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+> [!TIP]
+> **Tip for Windows Users**: To avoid errors when running the AI model, it is recommended to use **Windows Subsystem for Linux (WSL)** for a smoother experience."
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Table of Contents
 
-## Project setup
+1. [Overview](#overview)
+2. [Features](#features)
+3. [Technologies Used](#technologies-used)
+4. [Setup and Installation](#setup-and-installation)
+5. [Running the Application](#running-the-application)
+6. [AI Model Integration](#ai-model-integration)
+7. [Webhooks and Frontend Interaction](#webhooks-and-frontend-interaction)
+8. [Database](#database)
+9. [Contributing](#contributing)
+10. [License](#license)
 
-```bash
-$ pnpm install
-```
+---
 
-## Compile and run the project
+## Overview
 
-```bash
-# development
-$ pnpm run start
+The Astro-Arena Backend is the backbone of the card game, handling game logic, player interactions, and AI-driven decisions for the PC player. It is built with **NestJS**, a progressive Node.js framework, and uses **MongoDB** for data storage. The backend also integrates an **AI model** to simulate the PC player's moves and communicates with the frontend via **webhooks** for real-time updates.
 
-# watch mode
-$ pnpm run start:dev
+---
 
-# production mode
-$ pnpm run start:prod
-```
+## Features
 
-## Run tests
+- **Game Logic**: Handles card battles, player turns, and game state management.
+- **AI Model Integration**: Runs the AI model for the PC player's decision-making.
+- **Webhook Support**: Enables real-time communication with the frontend.
+- **Database Management**: Stores player data, card collections, and game history in MongoDB.
+- **RESTful API**: Provides endpoints for frontend interactions.
 
-```bash
-# unit tests
-$ pnpm run test
+---
 
-# e2e tests
-$ pnpm run test:e2e
+## Technologies Used
 
-# test coverage
-$ pnpm run test:cov
-```
+- **Backend Framework**: NestJS
+- **Database**: MongoDB
+- **AI Model**: TensorFlow.js
+- **API Communication**: Webhooks, REST API
+- **Authentication**: JWT
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Setup and Installation
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+1. **Clone the Repository**:
 
-```bash
-$ pnpm install -g mau
-$ mau deploy
-```
+   ```bash
+   git clone https://github.com/julio-pg/astro-arena-backend.git
+   cd astro-arena-backend
+   ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+2. **Install Dependencies**:
 
-## Resources
+   ```bash
+   pnpm install
+   ```
 
-Check out a few resources that may come in handy when working with NestJS:
+3. **Set Up Environment Variables**:
+   Create a `.env` file in the root directory and add the following variables:
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+   ```env
+   DATABASE_URL=mongodb://your-mongodb-uri
+   ```
 
-## Support
+4. **Run the Application**:
+   ```bash
+   pnpm run start
+   ```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+---
 
-## Stay in touch
+## Running the Application
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+- Start the development server:
+  ```bash
+  pnpm run start:dev
+  ```
+- The server will be running at `http://localhost:3000`.
+
+---
+
+## AI Model Integration
+
+The backend runs an **AI model** to simulate the PC player's moves during battles. The model is integrated into the server and performs the following tasks:
+
+- Analyzes the current game state.
+- Predicts optimal moves based on card attributes and game rules.
+- Sends the PC player's decisions back to the frontend via webhooks.
+
+The AI model is loaded and executed on the server, ensuring low latency and seamless gameplay.
+
+---
+
+## Webhooks and Frontend Interaction
+
+The backend communicates with the frontend using **webhooks** for real-time updates. Key interactions include:
+
+- Receiving player moves and updating the game state.
+- Sending battle results and game updates to the frontend.
+- Triggering the AI model for the PC player's moves.
+
+Ensure the frontend is configured to send and receive webhooks to/from the backend.
+
+---
+
+## Database
+
+The backend uses **MongoDB** as the primary database to store:
+
+- Player profiles and statistics.
+- Card collections and attributes.
+- Game history and battle logs.
+
+The connection to MongoDB is configured using the `DATABASE_URL` environment variable.
+
+---
+
+## Contributing
+
+We welcome contributions to the Astro-Arena-Backend! If you'd like to contribute, please follow these steps:
+
+1. Fork the repository.
+2. Create a new branch for your feature or bugfix.
+3. Commit your changes with clear and descriptive messages.
+4. Submit a pull request.
+
+Please ensure your code follows the project's coding standards and includes relevant tests.
+
+---
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
+
+---
+
+## Acknowledgments
+
+- Built with NestJS and MongoDB.
+- Integrated with the [Astro-Arena Frontend](https://github.com/julio-pg/astro-arena-frontend).
+- Special thanks to the open-source community for their invaluable tools and libraries.
+
+---
+
+Enjoy building and enhancing the Astro-Arena Backend! 🌌🚀
